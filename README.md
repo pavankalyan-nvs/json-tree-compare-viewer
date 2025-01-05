@@ -65,7 +65,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application in y
 
 The main component of the application is `JsonTreeCompareViewer`, which can be found in:
 
- <a href="https://github.com/nvspavankalyanch/json-tree-compare-viewer/blob/main/src/JsonTreeCompareViewer.jsx">JsonTreeCompareViewer</a>
+ <a href="https://github.com/pavankalyan-nvs/json-tree-compare-viewer/blob/main/src/JsonTreeCompareViewer.jsx">JsonTreeCompareViewer</a>
 
 
 
