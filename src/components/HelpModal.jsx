@@ -62,6 +62,16 @@ const HelpModal = ({ isOpen, onClose }) => {
               <li><span className="font-semibold text-gray-700 dark:text-gray-300">Gray/Default Text for Keys:</span> Indicates keys that are present in both JSON structures and have the same value (if the value is an object/array) or whose primitive values match (then green).</li>
             </ul>
              <p className="mt-1 text-xs"><em>(The legend at the bottom of the page also provides a quick color reference.)</em></p>
+            
+            <h5 className="text-md font-semibold my-2 text-gray-800 dark:text-white">Comparison Statistics:</h5>
+            <p className="mb-1">After a successful comparison, a 'Comparison Statistics' card will appear above the detailed tree view. This provides a quantitative summary, including:</p>
+            <ul className="list-disc list-inside space-y-1 pl-4">
+                <li>Total properties/elements in each JSON.</li>
+                <li>Number of common paths (keys/indices).</li>
+                <li>Number of matching or different values at common paths.</li>
+                <li>Number of paths exclusive to the left or right JSON.</li>
+            </ul>
+            <p className="mt-1">These stats offer a high-level overview of the differences and similarities before diving into the tree details.</p>
           </section>
 
           <section className="mb-4">
