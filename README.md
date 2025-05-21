@@ -1,4 +1,4 @@
-# JSON Compare Viewer
+# JSON Tree Compare Viewer
 
 A React-based web application for comparing and visualizing JSON structures side by side.
 
@@ -21,7 +21,7 @@ A React-based web application for comparing and visualizing JSON structures side
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/json-compare-viewer.git
+   git clone https://github.com/yourusername/json-tree-compare-viewer.git
    ```
 
 2. Navigate to the project directory:
@@ -65,7 +65,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application in y
 
 The main component of the application is `JsonTreeCompareViewer`, which can be found in:
 
- <a href="https://github.com/pavankalyan-nvs/json-compare-viewer/blob/master/src/JsonTreeCompareViewer.jsx">JsonTreeCompareViewer</a>
+ <a href="https://github.com/pavankalyan-nvs/json-tree-compare-viewer/blob/master/src/JsonTreeCompareViewer.jsx">JsonTreeCompareViewer</a>
 
 
 
