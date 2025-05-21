@@ -1,54 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import DarkModeToggle from './components/DarkModeToggle';
+import { searchJsonTree } from './lib/searchUtils';
 
-const JsonNode = ({ data, otherData, path = [], isLeft }) => {
+const JsonNode = ({ data, otherData, path = [], isLeft, highlightPaths = [] }) => {
   const [isExpanded, setIsExpanded] = useState(path.length < 2);
+
+  const currentPathString = path.join('.');
+  const isHighlighted = highlightPaths.some(hPath => hPath.join('.') === currentPathString);
 
   if (typeof data !== 'object' || data === null) {
     const isDifferent = data !== otherData;
-    const className = isDifferent
+    let className = isDifferent
       ? isLeft
         ? 'text-red-600 font-semibold'
         : 'text-blue-600 font-semibold'
       : 'text-green-600';
+    
+    // If highlighted, apply background. The span itself will carry the text color.
+    // The parent div of a primitive doesn't exist, so we wrap it or style it directly.
+    // For simplicity, we'll wrap it.
+    if (isHighlighted) {
+      // This styling is for the value itself.
+      // We need to return a structure that can be wrapped by a highlighted div if its parent key matched.
+      // This part is tricky because the primitive value itself might be the search target.
+      // The requirement is to highlight the div that wraps key and value.
+      // Here, we only have the value. The key is handled in the 'else' block.
+      // If the primitive value itself is highlighted, its direct span should reflect that.
+      // This will be handled by the parent div that wraps this primitive.
+    }
     return <span className={className}>{JSON.stringify(data)}</span>;
   }
 
   const isArray = Array.isArray(data);
   const entries = Object.entries(data);
 
+  // The current node (object or array) itself could be highlighted if its path matches.
+  const nodeHighlightClass = isHighlighted ? 'bg-yellow-200 dark:bg-yellow-700 rounded p-1' : '';
+
   return (
-    <div className="ml-4 border-l-2 border-gray-200 pl-2">
+    <div className={`ml-4 border-l-2 border-gray-200 pl-2 ${nodeHighlightClass}`}>
       <span
-        className="cursor-pointer inline-flex items-center hover:bg-gray-100 rounded px-1"
+        className="cursor-pointer inline-flex items-center hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        <span className="ml-1 text-gray-700">{isArray ? '[]' : '{}'}</span>
+        <span className="ml-1 text-gray-700 dark:text-gray-300">{isArray ? '[]' : '{}'}</span>
       </span>
       {isExpanded && (
         <div>
           {entries.map(([key, value]) => {
             const newPath = [...path, key];
+            const newPathString = newPath.join('.');
+            const isChildHighlighted = highlightPaths.some(hPath => hPath.join('.') === newPathString);
+
             const otherValue = otherData && typeof otherData === 'object' ? otherData[key] : undefined;
             const isDifferent = !otherData || !(key in otherData);
-            const className = isDifferent
+            
+            let keyClassName = isDifferent
               ? isLeft
                 ? 'text-red-600 font-semibold'
                 : 'text-blue-600 font-semibold'
-              : 'text-gray-700';
+              : 'text-gray-700 dark:text-gray-300';
+            
+            // The div wraps the key and the recursively called JsonNode (value)
+            // This div should get the highlight if the *newPath* (path to the key-value pair) is in highlightPaths
+            const entryHighlightClass = isChildHighlighted ? 'bg-yellow-200 dark:bg-yellow-700 rounded p-1' : '';
+
             return (
-              <div key={key} className="my-1">
-                <span className={className}>{isArray ? key : `"${key}":`}</span>{' '}
+              <div key={key} className={`my-1 ${entryHighlightClass}`}>
+                <span className={keyClassName}>{isArray ? key : `"${key}":`}</span>{' '}
                 <JsonNode
                   data={value}
                   otherData={otherValue}
                   path={newPath}
                   isLeft={isLeft}
+                  highlightPaths={highlightPaths}
                 />
               </div>
             );
@@ -66,6 +96,9 @@ const JsonTreeCompareViewer = () => {
   const [parsedRight, setParsedRight] = useState(null);
   const [error, setError] = useState('');
   const [darkMode, setDarkMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [leftHighlightPaths, setLeftHighlightPaths] = useState([]);
+  const [rightHighlightPaths, setRightHighlightPaths] = useState([]);
 
   const toggleDarkMode = () => {
     setDarkMode((prevDarkMode) => !prevDarkMode);
@@ -78,6 +111,16 @@ const JsonTreeCompareViewer = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    if (searchQuery && parsedLeft && parsedRight) {
+      setLeftHighlightPaths(searchJsonTree(parsedLeft, searchQuery));
+      setRightHighlightPaths(searchJsonTree(parsedRight, searchQuery));
+    } else {
+      setLeftHighlightPaths([]);
+      setRightHighlightPaths([]);
+    }
+  }, [searchQuery, parsedLeft, parsedRight]);
 
   const handleCompare = () => {
     try {
@@ -167,27 +210,47 @@ const JsonTreeCompareViewer = () => {
         )}
 
         {parsedLeft && parsedRight && (
-          <Card className="dark:bg-gray-700">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold dark:text-white">Comparison Result</CardTitle>
+          <>
+            <div className="mb-4 relative">
+              <input
+                type="text"
+                placeholder="Search keys/values..."
+                className="w-full p-2 pr-10 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-600 dark:text-white dark:border-gray-500"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery.length > 0 && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  aria-label="Clear search"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+            <Card className="dark:bg-gray-700">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold dark:text-white">Comparison Result</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="w-full md:w-1/2">
                   <h3 className="text-lg font-semibold mb-2 dark:text-white">Left JSON</h3>
                   <div className="border rounded p-4 bg-gray-50 dark:bg-gray-600 dark:border-gray-500">
-                    <JsonNode data={parsedLeft} otherData={parsedRight} isLeft={true} />
+                    <JsonNode data={parsedLeft} otherData={parsedRight} isLeft={true} highlightPaths={leftHighlightPaths} />
                   </div>
                 </div>
                 <div className="w-full md:w-1/2">
                   <h3 className="text-lg font-semibold mb-2 dark:text-white">Right JSON</h3>
                   <div className="border rounded p-4 bg-gray-50 dark:bg-gray-600 dark:border-gray-500">
-                    <JsonNode data={parsedRight} otherData={parsedLeft} isLeft={false} />
+                    <JsonNode data={parsedRight} otherData={parsedLeft} isLeft={false} highlightPaths={rightHighlightPaths} />
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+          </>
         )}
 
         <div className="mt-6 bg-gray-100 p-4 rounded dark:bg-gray-700">
