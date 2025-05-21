@@ -302,7 +302,7 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       level1_obj: {
         level2_key: 'level2_value',
         level2_obj: {
-          level3_key: 'level3_value_target', // Target for search
+          level3_key: 'level3_value_target', 
         },
         level2_arr: ['arr_val1', { arr_obj_key: 'arr_obj_val' }],
       },
@@ -420,28 +420,22 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       const helpButton = screen.getByRole('button', { name: /Open help section/i });
       fireEvent.click(helpButton);
 
-      // Wait for modal to appear and check by role and title
       const helpModal = await screen.findByRole('dialog', { name: /How to Use This Tool/i });
       expect(helpModal).toBeVisible();
       expect(screen.getByText('How to Use This Tool')).toBeVisible();
-
-      // Check for some content
       expect(screen.getByText(/Welcome to the JSON Tree Compare Viewer!/)).toBeVisible();
     });
 
     test('Closing the Help Modal (via "X" button in header)', async () => {
       render(<JsonTreeCompareViewer />);
       
-      // Open the modal first
       const helpButton = screen.getByRole('button', { name: /Open help section/i });
       fireEvent.click(helpButton);
-      await screen.findByRole('dialog'); // Wait for modal to be open
+      await screen.findByRole('dialog'); 
 
-      // Find and click the close button in the modal's header
       const closeButtonInModal = screen.getByRole('button', { name: /Close modal/i });
       fireEvent.click(closeButtonInModal);
 
-      // Wait for modal to disappear
       await waitFor(() => {
         expect(screen.queryByRole('dialog', { name: /How to Use This Tool/i })).not.toBeInTheDocument();
       });
@@ -451,18 +445,14 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
     test('Closing the Help Modal (via "Close" button in footer)', async () => {
         render(<JsonTreeCompareViewer />);
         
-        // Open the modal first
         const helpButton = screen.getByRole('button', { name: /Open help section/i });
         fireEvent.click(helpButton);
-        const modal = await screen.findByRole('dialog'); // Wait for modal to be open
+        const modal = await screen.findByRole('dialog'); 
   
-        // Find and click the close button in the modal's footer
-        // This requires the button to have a more specific selector or be unique by text "Close"
         const closeButtonInFooter = Array.from(modal.querySelectorAll('button')).find(b => b.textContent === "Close");
         expect(closeButtonInFooter).toBeInTheDocument();
         fireEvent.click(closeButtonInFooter);
   
-        // Wait for modal to disappear
         await waitFor(() => {
           expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
@@ -471,20 +461,104 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
     test('Closing the Help Modal (via overlay click)', async () => {
         render(<JsonTreeCompareViewer />);
         
-        // Open the modal first
         const helpButton = screen.getByRole('button', { name: /Open help section/i });
         fireEvent.click(helpButton);
-        const modalOverlay = await screen.findByRole('dialog'); // The overlay itself is the dialog container
+        const modalOverlay = await screen.findByRole('dialog'); 
         
-        // Click on the overlay (which is the dialog container itself in this setup)
-        // Ensure not to click on the content part by clicking at the very top-left of the dialog container
         fireEvent.click(modalOverlay); 
   
-        // Wait for modal to disappear
         await waitFor(() => {
           expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
+  });
 
+  // --- Comparison Statistics Display Tests ---
+  describe('Comparison Statistics Display', () => {
+    test('Stats are hidden initially', () => {
+      render(<JsonTreeCompareViewer />);
+      expect(screen.queryByText('Comparison Statistics')).not.toBeInTheDocument();
+    });
+
+    test('Basic stats display correctly after comparison', async () => {
+      render(<JsonTreeCompareViewer />);
+      const jsonA = { a: 1, b: "hello", c: true };
+      const jsonB = { a: 1, b: "world", d: false };
+
+      fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: JSON.stringify(jsonA) } });
+      fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: JSON.stringify(jsonB) } });
+      fireEvent.click(screen.getByText('Compare'));
+
+      await screen.findByText('Comparison Statistics');
+      
+      // Expected stats for jsonA vs jsonB:
+      // totalLeftItems: 3 (a, b, c)
+      // totalRightItems: 3 (a, b, d)
+      // commonPaths: 2 (a, b)
+      // matchingValues: 1 (a)
+      // differentValues: 1 (b)
+      // onlyInLeft: 1 (c)
+      // onlyInRight: 1 (d)
+
+      expect(screen.getByText('Total Properties/Elements (Left):').nextSibling.textContent).toBe('3');
+      expect(screen.getByText('Total Properties/Elements (Right):').nextSibling.textContent).toBe('3');
+      expect(screen.getByText('Common Paths (Keys/Indices):').nextSibling.textContent).toBe('2');
+      expect(screen.getByText('Matching Values (at Common Paths):').nextSibling.textContent).toBe('1');
+      expect(screen.getByText('Different Values (at Common Paths):').nextSibling.textContent).toBe('1');
+      expect(screen.getByText('Exclusive to Left (Paths):').nextSibling.textContent).toBe('1');
+      expect(screen.getByText('Exclusive to Right (Paths):').nextSibling.textContent).toBe('1');
+    });
+
+    test('Stats are cleared on parsing error', async () => {
+      render(<JsonTreeCompareViewer />);
+      // First, a valid comparison to show stats
+      fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: '{"a":1}' } });
+      fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: '{"b":2}' } });
+      fireEvent.click(screen.getByText('Compare'));
+      await screen.findByText('Comparison Statistics');
+      expect(screen.getByText('Comparison Statistics')).toBeVisible();
+
+      // Then, an invalid comparison
+      fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: 'invalid json' } });
+      fireEvent.click(screen.getByText('Compare'));
+      
+      // Error message should appear
+      await screen.findByText('Invalid JSON input. Please check your JSON and try again.');
+      expect(screen.queryByText('Comparison Statistics')).not.toBeInTheDocument();
+    });
+
+    test('Stats are cleared with the "Clear" button for one input', async () => {
+      render(<JsonTreeCompareViewer />);
+      fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: '{"a":1}' } });
+      fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: '{"b":2}' } });
+      fireEvent.click(screen.getByText('Compare'));
+      await screen.findByText('Comparison Statistics');
+
+      // Clear Left JSON (assuming clear buttons are identifiable, e.g., by aria-label or order)
+      // The buttons are: Copy (left), Clear (left), Copy (right), Clear (right)
+      const clearButtons = screen.getAllByRole('button', { name: /Clear/i });
+      fireEvent.click(clearButtons[0]); // Click "Clear" for Left JSON
+
+      // Wait for stats to disappear
+      await waitFor(() => {
+        expect(screen.queryByText('Comparison Statistics')).not.toBeInTheDocument();
+      });
+    });
+    
+    test('Stats are cleared when both inputs are cleared', async () => {
+        render(<JsonTreeCompareViewer />);
+        fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: '{"a":1}' } });
+        fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: '{"b":2}' } });
+        fireEvent.click(screen.getByText('Compare'));
+        await screen.findByText('Comparison Statistics');
+  
+        const clearButtons = screen.getAllByRole('button', { name: /Clear/i });
+        fireEvent.click(clearButtons[0]); // Clear Left JSON
+        fireEvent.click(clearButtons[1]); // Clear Right JSON
+  
+        await waitFor(() => {
+          expect(screen.queryByText('Comparison Statistics')).not.toBeInTheDocument();
+        });
+      });
   });
 });

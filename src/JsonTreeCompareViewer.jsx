@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import DarkModeToggle from './components/DarkModeToggle';
 import { searchJsonTree } from './lib/searchUtils';
 import HelpModal from './components/HelpModal';
+import ComparisonStatsDisplay from './components/ComparisonStatsDisplay';
+import { calculateJsonComparisonStats } from './lib/comparisonUtils';
 
 const JsonNode = ({ data, otherData, path = [], isLeft, highlightPaths = [] }) => {
   const [isExpanded, setIsExpanded] = useState(path.length < 1); // Changed expansion depth
@@ -103,6 +105,7 @@ const JsonTreeCompareViewer = () => {
   const [savedSessions, setSavedSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(''); // For dropdown selection and delete target
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [comparisonStats, setComparisonStats] = useState(null);
 
   const toggleDarkMode = () => {
     setDarkMode((prevDarkMode) => !prevDarkMode);
@@ -144,11 +147,18 @@ const JsonTreeCompareViewer = () => {
 
   const handleCompare = () => {
     try {
-      setParsedLeft(JSON.parse(leftJson));
-      setParsedRight(JSON.parse(rightJson));
+      const pLeft = JSON.parse(leftJson);
+      const pRight = JSON.parse(rightJson);
+      setParsedLeft(pLeft);
+      setParsedRight(pRight);
       setError('');
+      const stats = calculateJsonComparisonStats(pLeft, pRight);
+      setComparisonStats(stats);
     } catch (e) {
       setError('Invalid JSON input. Please check your JSON and try again.');
+      setParsedLeft(null); 
+      setParsedRight(null);
+      setComparisonStats(null); // Clear stats on error
     }
   };
 
@@ -272,6 +282,16 @@ const JsonTreeCompareViewer = () => {
       setRightJson('');
       setParsedRight(null);
     }
+    // If either side is cleared, the comparison is no longer valid / complete
+    if (!parsedLeft || !parsedRight) {
+      setComparisonStats(null);
+    }
+     // If both are cleared, also clear stats
+    if (!leftJson && !rightJson) {
+        setParsedLeft(null);
+        setParsedRight(null);
+        setComparisonStats(null);
+    }
   };
 
   return (
@@ -373,6 +393,8 @@ const JsonTreeCompareViewer = () => {
             </Button>
           </CardContent>
         </Card>
+
+        <ComparisonStatsDisplay stats={comparisonStats} />
 
         {error && (
           <Alert variant="destructive" className="mb-6">
