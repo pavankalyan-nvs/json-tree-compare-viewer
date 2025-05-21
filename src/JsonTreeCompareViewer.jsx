@@ -7,7 +7,7 @@ import DarkModeToggle from './components/DarkModeToggle';
 import { searchJsonTree } from './lib/searchUtils';
 
 const JsonNode = ({ data, otherData, path = [], isLeft, highlightPaths = [] }) => {
-  const [isExpanded, setIsExpanded] = useState(path.length < 2);
+  const [isExpanded, setIsExpanded] = useState(path.length < 1); // Changed expansion depth
 
   const currentPathString = path.join('.');
   const isHighlighted = highlightPaths.some(hPath => hPath.join('.') === currentPathString);
