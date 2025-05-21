@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2, HelpCircle, Download, ChevronUp } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
+import html2pdf from 'html2pdf.js';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import DarkModeToggle from './components/DarkModeToggle';
@@ -106,6 +107,8 @@ const JsonTreeCompareViewer = () => {
   const [selectedSessionId, setSelectedSessionId] = useState(''); // For dropdown selection and delete target
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [comparisonStats, setComparisonStats] = useState(null);
+  const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const toggleDarkMode = () => {
     setDarkMode((prevDarkMode) => !prevDarkMode);
@@ -118,6 +121,19 @@ const JsonTreeCompareViewer = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Effect to handle clicks outside the dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDownloadDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
   // Load sessions from Local Storage on component mount
   useEffect(() => {
@@ -159,6 +175,101 @@ const JsonTreeCompareViewer = () => {
       setParsedLeft(null); 
       setParsedRight(null);
       setComparisonStats(null); // Clear stats on error
+    }
+  };
+
+  const handleDownloadJson = () => {
+    if (!leftJson || !rightJson || !comparisonStats) {
+      console.error('Missing data for JSON report download.');
+      alert('Cannot download JSON report: Missing JSON input or comparison data.');
+      setIsDownloadDropdownOpen(false);
+      return;
+    }
+
+    const reportData = {
+      leftJson: leftJson, // Raw string
+      rightJson: rightJson, // Raw string
+      comparisonStats: comparisonStats,
+    };
+
+    try {
+      const jsonString = JSON.stringify(reportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const objectUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = 'comparison_report.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(objectUrl);
+      console.log('JSON report download initiated.');
+    } catch (error) {
+      console.error('Error generating or downloading JSON report:', error);
+      alert('Failed to generate or download JSON report. See console for details.');
+    }
+
+    setIsDownloadDropdownOpen(false); // Close dropdown after action
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!comparisonStats) {
+      console.error('Missing data for PDF report download.');
+      alert('Cannot download PDF report: Missing comparison data.');
+      setIsDownloadDropdownOpen(false);
+      return;
+    }
+
+    const reportElement = document.createElement('div');
+    // Apply some basic styling for the PDF content
+    reportElement.style.padding = '20px';
+    reportElement.style.fontFamily = 'Arial, sans-serif';
+    reportElement.style.lineHeight = '1.6';
+    reportElement.style.color = '#333';
+
+    let htmlContent = `
+      <h1 style="text-align: center; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;">JSON Comparison Report</h1>
+      <h2 style="color: #555;">Comparison Statistics:</h2>
+      <ul style="list-style-type: none; padding: 0;">
+    `;
+
+    for (const [key, value] of Object.entries(comparisonStats)) {
+      // Convert camelCase key to Title Case for readability
+      const titleKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+      htmlContent += `<li style="padding: 5px 0; border-bottom: 1px solid #f0f0f0;"><strong>${titleKey}:</strong> ${value}</li>`;
+    }
+
+    htmlContent += `</ul>`;
+    reportElement.innerHTML = htmlContent;
+
+    // Append to body to be processed by html2pdf, but make it invisible
+    reportElement.style.position = 'absolute';
+    reportElement.style.left = '-9999px';
+    reportElement.style.top = '-9999px';
+    document.body.appendChild(reportElement);
+
+    const options = {
+      margin: [10, 10, 10, 10], // top, right, bottom, left in mm
+      filename: 'comparison_report.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, logging: false, useCORS: true }, // Added logging: false and useCORS
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    try {
+      console.log('Initiating PDF download with html2pdf.js...');
+      await html2pdf().from(reportElement).set(options).save();
+      console.log('PDF report download initiated.');
+      alert('PDF report download started. Please check your downloads.');
+    } catch (error) {
+      console.error('Error generating or downloading PDF report:', error);
+      alert(`Failed to generate or download PDF report: ${error.message}. See console for details.`);
+    } finally {
+      document.body.removeChild(reportElement); // Clean up the temporary element
+      setIsDownloadDropdownOpen(false); // Close dropdown after action
     }
   };
 
@@ -391,6 +502,37 @@ const JsonTreeCompareViewer = () => {
             <Button onClick={handleCompare} className="w-full bg-gray-900 text-white hover:bg-gray-800 transition-colors dark:bg-gray-600 dark:hover:bg-gray-500">
               Compare
             </Button>
+
+            <div className="mt-4 relative" ref={dropdownRef}>
+              <Button 
+                onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)} 
+                disabled={!comparisonStats}
+                variant="outline"
+                className="w-full dark:text-white dark:border-white flex items-center justify-center"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Report
+                {isDownloadDropdownOpen ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+              </Button>
+              {isDownloadDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg">
+                  <div 
+                    onClick={handleDownloadJson}
+                    className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-gray-700 dark:text-gray-300" />
+                    Download as JSON
+                  </div>
+                  <div 
+                    onClick={handleDownloadPdf}
+                    className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center"
+                  >
+                    <Download className="h-4 w-4 mr-2 text-gray-700 dark:text-gray-300" />
+                    Download as PDF
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
