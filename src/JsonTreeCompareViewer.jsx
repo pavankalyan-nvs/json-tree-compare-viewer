@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import DarkModeToggle from './components/DarkModeToggle';
 import { searchJsonTree } from './lib/searchUtils';
+import HelpModal from './components/HelpModal';
 
 const JsonNode = ({ data, otherData, path = [], isLeft, highlightPaths = [] }) => {
   const [isExpanded, setIsExpanded] = useState(path.length < 1); // Changed expansion depth
@@ -101,6 +102,7 @@ const JsonTreeCompareViewer = () => {
   const [rightHighlightPaths, setRightHighlightPaths] = useState([]);
   const [savedSessions, setSavedSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(''); // For dropdown selection and delete target
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
   const toggleDarkMode = () => {
     setDarkMode((prevDarkMode) => !prevDarkMode);
@@ -314,6 +316,15 @@ const JsonTreeCompareViewer = () => {
                 </Button>
               )}
               <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => setIsHelpModalOpen(true)}
+                className="dark:text-white dark:border-white"
+                aria-label="Open help section"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -425,6 +436,7 @@ const JsonTreeCompareViewer = () => {
           </div>
         </div>
       </div>
+      <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
     </div>
   );
 };

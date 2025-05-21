@@ -309,22 +309,6 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       another_level1_key: 'another_value',
     };
     const nestedJsonString = JSON.stringify(nestedJson);
-
-    // Helper to get a toggle button (Chevron) for a given key's node
-    // This is a bit fragile and depends on DOM structure.
-    // A data-testid on the toggle button itself would be more robust.
-    const getToggleForNodeByKey = (keyText) => {
-        const keyElement = screen.getByText(`"${keyText}":`);
-        // The toggle is usually a sibling span containing an SVG.
-        // Or, it's a child of the parent div of the keyElement's parent span.
-        // JsonNode structure: div (my-1) -> span (key) & JsonNode (value)
-        // JsonNode (value) -> div (ml-4) -> span (toggle) & div (children)
-        const parentDiv = keyElement.closest('div.my-1');
-        if (!parentDiv) return null;
-        const valueNodeDiv = parentDiv.querySelector('div.ml-4'); // This is the start of the JsonNode for the value
-        if (!valueNodeDiv) return null;
-        return valueNodeDiv.querySelector('span[role="button"]'); // Assuming toggle span has role="button" or similar
-    };
     
     const findChevronDown = (element) => element.querySelector('svg.lucide-chevron-down');
     const findChevronRight = (element) => element.querySelector('svg.lucide-chevron-right');
@@ -333,32 +317,22 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
     test('Initial Render: root expanded, children collapsed', async () => {
       render(<JsonTreeCompareViewer />);
       fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: nestedJsonString } });
-      fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: "{}" } }); // Simple right JSON
+      fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: "{}" } }); 
       fireEvent.click(screen.getByText('Compare'));
       await screen.findByText('Comparison Result');
 
-      // Verify root node (Left JSON tree) content is visible
       expect(screen.getByText(/"level1_key":/)).toBeInTheDocument();
       expect(screen.getByText(/"level1_obj":/)).toBeInTheDocument();
       expect(screen.getByText(/"another_level1_key":/)).toBeInTheDocument();
       
-      // Verify root node's toggle icon indicates expanded (ChevronDown)
-      // The root itself doesn't have a key name like "level1_obj", its toggle is the first one.
       const leftTreeContainer = screen.getByText('Left JSON').closest('.w-full.md\\:w-1\\/2').querySelector('.border.rounded.p-4');
-      const rootToggle = leftTreeContainer.querySelector('span.cursor-pointer'); // First toggle
+      const rootToggle = leftTreeContainer.querySelector('span.cursor-pointer'); 
       expect(rootToggle).not.toBeNull();
-      expect(findChevronDown(rootToggle)).toBeInTheDocument(); // Root is expanded by default (path.length < 1)
+      expect(findChevronDown(rootToggle)).toBeInTheDocument(); 
       
-      // Verify content of second-level nodes (e.g., "level2_key") is NOT present
       expect(screen.queryByText(/"level2_key":/)).not.toBeInTheDocument();
       expect(screen.queryByText(/"level3_key":/)).not.toBeInTheDocument();
 
-      // Verify toggle icons for first-level children (like level1_obj) indicate collapsed (ChevronRight)
-      // Since level1_obj is a child of root (path.length 0), its own path.length will be 1.
-      // Thus, level1_obj (if it were expanded) would have its children initially collapsed (path.length < 1 for them)
-      // The task states: "The toggle icons for any first-level children (that are objects/arrays) should indicate they are collapsed"
-      // This means we need to find the toggle for "level1_obj".
-      // The "level1_obj" key is visible. Its associated value (the object node) contains the toggle.
       const level1ObjToggleContainer = screen.getByText(/"level1_obj":/).parentElement.querySelector('div.ml-4 > span.cursor-pointer');
       expect(level1ObjToggleContainer).not.toBeNull();
       expect(findChevronRight(level1ObjToggleContainer)).toBeInTheDocument();
@@ -370,26 +344,20 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       fireEvent.click(screen.getByText('Compare'));
       await screen.findByText('Comparison Result');
 
-      // Initial state: "level2_key" should not be visible
       expect(screen.queryByText(/"level2_key":/)).not.toBeInTheDocument();
 
-      // Find and click the toggle for "level1_obj"
       const level1ObjToggle = screen.getByText(/"level1_obj":/).parentElement.querySelector('div.ml-4 > span.cursor-pointer');
-      expect(findChevronRight(level1ObjToggle)).toBeInTheDocument(); // Starts collapsed
+      expect(findChevronRight(level1ObjToggle)).toBeInTheDocument(); 
       fireEvent.click(level1ObjToggle);
 
-      // Verify "level1_obj" is now expanded
       expect(findChevronDown(level1ObjToggle)).toBeInTheDocument();
       
-      // Verify its direct children are now visible
       expect(await screen.findByText(/"level2_key":/)).toBeInTheDocument();
       expect(screen.getByText(/"level2_obj":/)).toBeInTheDocument();
       expect(screen.getByText(/"level2_arr":/)).toBeInTheDocument();
 
-      // Verify "level3_key" (child of "level2_obj") is still not visible
       expect(screen.queryByText(/"level3_key":/)).not.toBeInTheDocument();
       
-      // Verify toggle for "level2_obj" is collapsed
       const level2ObjToggle = screen.getByText(/"level2_obj":/).parentElement.querySelector('div.ml-4 > span.cursor-pointer');
       expect(findChevronRight(level2ObjToggle)).toBeInTheDocument();
     });
@@ -400,19 +368,15 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       fireEvent.click(screen.getByText('Compare'));
       await screen.findByText('Comparison Result');
 
-      // Expand "level1_obj" first
       const level1ObjToggle = screen.getByText(/"level1_obj":/).parentElement.querySelector('div.ml-4 > span.cursor-pointer');
       fireEvent.click(level1ObjToggle);
-      await screen.findByText(/"level2_key":/); // Wait for expansion
-      expect(findChevronDown(level1ObjToggle)).toBeInTheDocument(); // Confirmed expanded
+      await screen.findByText(/"level2_key":/); 
+      expect(findChevronDown(level1ObjToggle)).toBeInTheDocument(); 
 
-      // Now, click to collapse "level1_obj"
       fireEvent.click(level1ObjToggle);
 
-      // Verify "level1_obj" is now collapsed
       expect(findChevronRight(level1ObjToggle)).toBeInTheDocument();
       
-      // Verify its direct children are no longer visible
       expect(screen.queryByText(/"level2_key":/)).not.toBeInTheDocument();
       expect(screen.queryByText(/"level2_obj":/)).not.toBeInTheDocument();
     });
@@ -426,45 +390,101 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       const searchInput = screen.getByPlaceholderText('Search keys/values...');
       fireEvent.change(searchInput, { target: { value: 'level3_value_target' } });
 
-      // At this point, "level3_value_target" is inside "level2_obj", which is inside "level1_obj".
-      // Both "level1_obj" and "level2_obj" are initially collapsed.
-      // The text "level3_value_target" should not be in the DOM yet.
       expect(screen.queryByText("level3_value_target")).not.toBeInTheDocument();
-      
-      // Also, its parent key "level3_key" should not be in the DOM.
       expect(screen.queryByText(/"level3_key":/)).not.toBeInTheDocument();
 
-      // The highlight is applied to the div wrapping the key-value pair.
-      // Let's check if "level1_obj" (ancestor) is highlighted because its child contains a match.
-      // This depends on how searchJsonTree returns paths and how JsonNode applies highlights to ancestors.
-      // Current searchJsonTree returns the direct path to the match.
-      // JsonNode highlights the direct path elements.
-      // So, "level1_obj" itself might not be highlighted directly, but its entry might be.
-      // The key here is that the *target itself* is not visible, so no direct highlight on it.
-
-      // Expand "level1_obj"
       const level1ObjToggle = screen.getByText(/"level1_obj":/).parentElement.querySelector('div.ml-4 > span.cursor-pointer');
       fireEvent.click(level1ObjToggle);
-      await screen.findByText(/"level2_obj":/); // "level2_obj" is now visible
+      await screen.findByText(/"level2_obj":/); 
 
-      // "level3_value_target" is still not visible.
       expect(screen.queryByText("level3_value_target")).not.toBeInTheDocument();
-      // The "level2_obj" should now be highlighted because its descendant contains the search term.
-      // The highlight class is applied to the div with class "my-1" that contains the key and the JsonNode.
       const level2ObjEntryDiv = screen.getByText(/"level2_obj":/).closest('div.my-1');
-      expect(level2ObjEntryDiv).toHaveClass('bg-yellow-200'); // Or dark mode equivalent
+      expect(level2ObjEntryDiv).toHaveClass('bg-yellow-200'); 
 
-      // Expand "level2_obj"
       const level2ObjToggle = screen.getByText(/"level2_obj":/).parentElement.querySelector('div.ml-4 > span.cursor-pointer');
       fireEvent.click(level2ObjToggle);
       
-      // Now "level3_key" and "level3_value_target" should be visible
       await screen.findByText(/"level3_key":/);
       expect(screen.getByText(/"level3_value_target"/)).toBeInTheDocument();
 
-      // The "level3_key" entry div should now be highlighted
       const level3KeyEntryDiv = screen.getByText(/"level3_key":/).closest('div.my-1');
-      expect(level3KeyEntryDiv).toHaveClass('bg-yellow-200'); // Or dark mode equivalent
+      expect(level3KeyEntryDiv).toHaveClass('bg-yellow-200'); 
     });
+  });
+
+  // --- Help Modal Tests ---
+  describe('Help Modal', () => {
+    test('Opening the Help Modal', async () => {
+      render(<JsonTreeCompareViewer />);
+      
+      const helpButton = screen.getByRole('button', { name: /Open help section/i });
+      fireEvent.click(helpButton);
+
+      // Wait for modal to appear and check by role and title
+      const helpModal = await screen.findByRole('dialog', { name: /How to Use This Tool/i });
+      expect(helpModal).toBeVisible();
+      expect(screen.getByText('How to Use This Tool')).toBeVisible();
+
+      // Check for some content
+      expect(screen.getByText(/Welcome to the JSON Tree Compare Viewer!/)).toBeVisible();
+    });
+
+    test('Closing the Help Modal (via "X" button in header)', async () => {
+      render(<JsonTreeCompareViewer />);
+      
+      // Open the modal first
+      const helpButton = screen.getByRole('button', { name: /Open help section/i });
+      fireEvent.click(helpButton);
+      await screen.findByRole('dialog'); // Wait for modal to be open
+
+      // Find and click the close button in the modal's header
+      const closeButtonInModal = screen.getByRole('button', { name: /Close modal/i });
+      fireEvent.click(closeButtonInModal);
+
+      // Wait for modal to disappear
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /How to Use This Tool/i })).not.toBeInTheDocument();
+      });
+      expect(screen.queryByText('How to Use This Tool')).not.toBeInTheDocument();
+    });
+
+    test('Closing the Help Modal (via "Close" button in footer)', async () => {
+        render(<JsonTreeCompareViewer />);
+        
+        // Open the modal first
+        const helpButton = screen.getByRole('button', { name: /Open help section/i });
+        fireEvent.click(helpButton);
+        const modal = await screen.findByRole('dialog'); // Wait for modal to be open
+  
+        // Find and click the close button in the modal's footer
+        // This requires the button to have a more specific selector or be unique by text "Close"
+        const closeButtonInFooter = Array.from(modal.querySelectorAll('button')).find(b => b.textContent === "Close");
+        expect(closeButtonInFooter).toBeInTheDocument();
+        fireEvent.click(closeButtonInFooter);
+  
+        // Wait for modal to disappear
+        await waitFor(() => {
+          expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+
+    test('Closing the Help Modal (via overlay click)', async () => {
+        render(<JsonTreeCompareViewer />);
+        
+        // Open the modal first
+        const helpButton = screen.getByRole('button', { name: /Open help section/i });
+        fireEvent.click(helpButton);
+        const modalOverlay = await screen.findByRole('dialog'); // The overlay itself is the dialog container
+        
+        // Click on the overlay (which is the dialog container itself in this setup)
+        // Ensure not to click on the content part by clicking at the very top-left of the dialog container
+        fireEvent.click(modalOverlay); 
+  
+        // Wait for modal to disappear
+        await waitFor(() => {
+          expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+
   });
 });
