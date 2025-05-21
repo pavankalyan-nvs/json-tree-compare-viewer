@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -99,6 +99,8 @@ const JsonTreeCompareViewer = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [leftHighlightPaths, setLeftHighlightPaths] = useState([]);
   const [rightHighlightPaths, setRightHighlightPaths] = useState([]);
+  const [savedSessions, setSavedSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState(''); // For dropdown selection and delete target
 
   const toggleDarkMode = () => {
     setDarkMode((prevDarkMode) => !prevDarkMode);
@@ -111,6 +113,22 @@ const JsonTreeCompareViewer = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Load sessions from Local Storage on component mount
+  useEffect(() => {
+    try {
+      const sessionsRaw = localStorage.getItem("jsonCompareSessions");
+      if (sessionsRaw) {
+        const sessions = JSON.parse(sessionsRaw);
+        // Sort sessions by timestamp descending (newest first) for better UX
+        sessions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        setSavedSessions(sessions);
+      }
+    } catch (e) {
+      console.error("Error loading sessions from Local Storage:", e);
+      alert("Failed to load sessions. Local Storage might be corrupted or inaccessible.");
+    }
+  }, []);
 
   useEffect(() => {
     if (searchQuery && parsedLeft && parsedRight) {
@@ -132,6 +150,114 @@ const JsonTreeCompareViewer = () => {
     }
   };
 
+  const handleSaveSession = () => {
+    const sessionName = window.prompt("Enter a name for this session:");
+    if (!sessionName || sessionName.trim() === "") {
+      alert("Session name cannot be empty. Save aborted.");
+      return;
+    }
+
+    if (!leftJson && !rightJson) {
+      alert("Cannot save an empty session. Please input JSON content.");
+      return;
+    }
+
+    const newSession = {
+      id: Date.now().toString(),
+      name: sessionName.trim(),
+      leftJson: leftJson,
+      rightJson: rightJson,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const existingSessionsRaw = localStorage.getItem("jsonCompareSessions");
+      const existingSessions = existingSessionsRaw ? JSON.parse(existingSessionsRaw) : [];
+      
+      // Optional: Check for duplicate names, though not strictly required by current task
+      // if (existingSessions.some(session => session.name === newSession.name)) {
+      //   if (!window.confirm(`A session named "${newSession.name}" already exists. Overwrite?`)) {
+      //     return;
+      //   }
+      //   existingSessions = existingSessions.filter(session => session.name !== newSession.name);
+      // }
+
+      const updatedSessions = [...existingSessions, newSession];
+      localStorage.setItem("jsonCompareSessions", JSON.stringify(updatedSessions));
+      // Sort sessions by timestamp descending (newest first) for better UX
+      updatedSessions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setSavedSessions(updatedSessions); // Update state to refresh dropdown
+      alert("Session saved successfully!");
+    } catch (e) {
+      console.error("Error saving session to Local Storage:", e);
+      alert("Failed to save session. Local Storage might be full or disabled.");
+    }
+  };
+
+  const handleLoadSession = (sessionId) => {
+    if (!sessionId) {
+      setSelectedSessionId(''); // Clear selection if default option is chosen
+      return;
+    }
+    setSelectedSessionId(sessionId); // Track selected session
+
+    const sessionToLoad = savedSessions.find(session => session.id === sessionId);
+    if (sessionToLoad) {
+      setLeftJson(sessionToLoad.leftJson || '');
+      setRightJson(sessionToLoad.rightJson || '');
+      
+      try {
+        setParsedLeft(JSON.parse(sessionToLoad.leftJson || 'null'));
+        setParsedRight(JSON.parse(sessionToLoad.rightJson || 'null'));
+        setError(''); 
+        alert(`Session "${sessionToLoad.name}" loaded!`);
+      } catch (e) {
+        console.error("Error parsing JSON from loaded session:", e);
+        setError('Invalid JSON in loaded session. Please check the session data.');
+        setParsedLeft(null); 
+        setParsedRight(null);
+        alert(`Error loading session "${sessionToLoad.name}". Invalid JSON data.`);
+      }
+      setSearchQuery('');
+    } else {
+      alert("Failed to load session. Session not found.");
+      setSelectedSessionId(''); // Clear selection if session not found
+    }
+  };
+  
+  const handleDeleteSession = (sessionIdToDelete) => {
+    if (!sessionIdToDelete) {
+      alert("No session selected to delete.");
+      return;
+    }
+
+    const sessionToDelete = savedSessions.find(s => s.id === sessionIdToDelete);
+    if (!sessionToDelete) {
+        alert("Selected session not found for deletion.");
+        return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete the session "${sessionToDelete.name}"?`)) {
+      try {
+        const updatedSessions = savedSessions.filter(session => session.id !== sessionIdToDelete);
+        localStorage.setItem("jsonCompareSessions", JSON.stringify(updatedSessions));
+        setSavedSessions(updatedSessions);
+        alert("Session deleted successfully!");
+        if (selectedSessionId === sessionIdToDelete) {
+          setSelectedSessionId(''); // Clear selection if the deleted session was selected
+          // Optionally, clear the JSON inputs if the deleted session was loaded
+          // setLeftJson('');
+          // setRightJson('');
+          // setParsedLeft(null);
+          // setParsedRight(null);
+        }
+      } catch (e) {
+        console.error("Error deleting session from Local Storage:", e);
+        alert("Failed to delete session. Local Storage might be full or disabled.");
+      }
+    }
+  };
+
   const handleCopy = (side) => {
     navigator.clipboard.writeText(side === 'left' ? leftJson : rightJson);
   };
@@ -150,9 +276,45 @@ const JsonTreeCompareViewer = () => {
     <div className={`p-4 max-w-7xl mx-auto ${darkMode ? 'dark' : ''}`}>
       <div className="dark:bg-gray-800 dark:text-white transition-colors duration-200">
         <Card className="mb-6 dark:bg-gray-700">
-          <CardHeader className="text-center flex justify-between items-center">
+          <CardHeader className="flex flex-row justify-between items-center">
             <CardTitle className="text-2xl font-bold dark:text-white">JSON Tree Compare Viewer</CardTitle>
-            <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSaveSession} className="dark:text-white dark:border-white">
+                <Save className="h-4 w-4 mr-1" /> Save Session
+              </Button>
+              {savedSessions.length > 0 ? (
+                <>
+                  <select
+                    value={selectedSessionId} // Controlled component
+                    onChange={(e) => handleLoadSession(e.target.value)}
+                    className="p-2 border rounded text-sm bg-white dark:bg-gray-600 dark:text-white dark:border-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    aria-label="Load session"
+                  >
+                    <option value="" disabled>-- Select a session --</option>
+                    {savedSessions.map(session => (
+                      <option key={session.id} value={session.id}>
+                        {session.name} ({new Date(session.timestamp).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => handleDeleteSession(selectedSessionId)} 
+                    disabled={!selectedSessionId}
+                    className="dark:text-white dark:border-white disabled:dark:text-gray-400 disabled:dark:border-gray-600"
+                    aria-label="Delete selected session"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" disabled className="dark:text-gray-400 dark:border-gray-600">
+                  <FolderOpen className="h-4 w-4 mr-1" /> No Saved Sessions
+                </Button>
+              )}
+              <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row gap-4 mb-4">
