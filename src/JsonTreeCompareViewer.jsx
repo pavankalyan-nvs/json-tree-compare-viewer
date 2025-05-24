@@ -312,20 +312,13 @@ const JsonTreeCompareViewer = () => {
     if (side === 'left') {
       setLeftJson('');
       setParsedLeft(null);
-    } else {
+    } else if (side === 'right') { // Be explicit for 'right'
       setRightJson('');
       setParsedRight(null);
     }
-    // If either side is cleared, the comparison is no longer valid / complete
-    if (!parsedLeft || !parsedRight) {
-      setComparisonStats(null);
-    }
-     // If both are cleared, also clear stats
-    if (!leftJson && !rightJson) {
-        setParsedLeft(null);
-        setParsedRight(null);
-        setComparisonStats(null);
-    }
+    // Always clear comparison stats if any side is cleared,
+    // as the comparison is no longer valid.
+    setComparisonStats(null);
   };
 
   const handleJsonDownload = () => {
