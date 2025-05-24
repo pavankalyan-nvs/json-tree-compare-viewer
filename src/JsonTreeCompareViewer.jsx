@@ -145,6 +145,38 @@ const JsonTreeCompareViewer = () => {
     }
   }, [searchQuery, parsedLeft, parsedRight]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+
+      if (modifierKey && event.shiftKey && event.key === 'C') {
+        event.preventDefault();
+        handleCopy('left'); // Or 'right', or implement a way to choose
+        console.log("Left JSON copied to clipboard via shortcut.");
+      } else if (modifierKey && event.shiftKey && event.key === 'L') {
+        event.preventDefault();
+        handleClear('left');
+        console.log("Left JSON cleared via shortcut.");
+      } else if (modifierKey && event.shiftKey && event.key === 'R') {
+        event.preventDefault();
+        handleClear('right');
+        console.log("Right JSON cleared via shortcut.");
+      } else if (modifierKey && event.key.toLowerCase() === 'd') { // Cmd+D or Ctrl+D, ensure lowercase 'd'
+        event.preventDefault();
+        toggleDarkMode();
+        console.log("Dark mode toggled via shortcut.");
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
+
   const handleCompare = () => {
     try {
       const pLeft = JSON.parse(leftJson);
