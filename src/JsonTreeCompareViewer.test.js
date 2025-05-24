@@ -562,3 +562,77 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
       });
   });
 });
+
+// --- Keyboard Shortcut Tests ---
+describe('JsonTreeCompareViewer Keyboard Shortcuts', () => {
+  let consoleLogSpy;
+
+  beforeEach(() => {
+    // Spy on console.log before each test in this suite
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    // Ensure navigator.clipboard.writeText is fresh for each test
+    navigator.clipboard.writeText.mockClear(); 
+  });
+
+  afterEach(() => {
+    // Restore console.log
+    consoleLogSpy.mockRestore();
+    // Clear the class list for documentElement after dark mode tests
+    document.documentElement.classList.remove('dark');
+  });
+
+  const testCases = [
+    { description: 'Ctrl', keyProps: { ctrlKey: true, metaKey: false } },
+    { description: 'Meta (Cmd)', keyProps: { ctrlKey: false, metaKey: true } },
+  ];
+
+  testCases.forEach(({ description, keyProps }) => {
+    describe(`With ${description} Key`, () => {
+      test(`toggles dark mode with ${description}+D`, () => {
+        render(<JsonTreeCompareViewer />);
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+        fireEvent.keyDown(document, { key: 'd', ...keyProps });
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(consoleLogSpy).toHaveBeenCalledWith('Dark mode toggled via shortcut.');
+
+        fireEvent.keyDown(document, { key: 'D', ...keyProps }); // Test with uppercase D
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+        expect(consoleLogSpy).toHaveBeenCalledWith('Dark mode toggled via shortcut.');
+      });
+
+      test(`copies left JSON with ${description}+Shift+C`, () => {
+        const { getByPlaceholderText } = render(<JsonTreeCompareViewer />);
+        const leftInput = getByPlaceholderText('Enter left JSON here');
+        const testJson = '{"name":"test"}';
+        fireEvent.change(leftInput, { target: { value: testJson } });
+
+        fireEvent.keyDown(document, { key: 'C', shiftKey: true, ...keyProps });
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(testJson);
+        expect(consoleLogSpy).toHaveBeenCalledWith('Left JSON copied to clipboard via shortcut.');
+      });
+
+      test(`clears left JSON with ${description}+Shift+L`, () => {
+        const { getByPlaceholderText } = render(<JsonTreeCompareViewer />);
+        const leftInput = getByPlaceholderText('Enter left JSON here');
+        fireEvent.change(leftInput, { target: { value: '{"data":"left"}' } });
+        expect(leftInput.value).toBe('{"data":"left"}');
+
+        fireEvent.keyDown(document, { key: 'L', shiftKey: true, ...keyProps });
+        expect(leftInput.value).toBe('');
+        expect(consoleLogSpy).toHaveBeenCalledWith('Left JSON cleared via shortcut.');
+      });
+
+      test(`clears right JSON with ${description}+Shift+R`, () => {
+        const { getByPlaceholderText } = render(<JsonTreeCompareViewer />);
+        const rightInput = getByPlaceholderText('Enter right JSON here');
+        fireEvent.change(rightInput, { target: { value: '{"data":"right"}' } });
+        expect(rightInput.value).toBe('{"data":"right"}');
+
+        fireEvent.keyDown(document, { key: 'R', shiftKey: true, ...keyProps });
+        expect(rightInput.value).toBe('');
+        expect(consoleLogSpy).toHaveBeenCalledWith('Right JSON cleared via shortcut.');
+      });
+    });
+  });
+});
