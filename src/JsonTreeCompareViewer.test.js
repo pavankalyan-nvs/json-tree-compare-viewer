@@ -563,6 +563,131 @@ describe('JsonTreeCompareViewer Integration Tests', () => {
   });
 });
 
+// --- Download Functionality Tests ---
+describe('Download Functionality', () => {
+  const leftJson = { name: 'Left', value: 1 };
+  const rightJson = { name: 'Right', value: 2 };
+  const leftJsonString = JSON.stringify(leftJson);
+  const rightJsonString = JSON.stringify(rightJson);
+
+  let createObjectURLMock;
+  let revokeObjectURLMock;
+  let anchorClickMock;
+
+  beforeEach(() => {
+    // Mock URL.createObjectURL and URL.revokeObjectURL
+    createObjectURLMock = jest.fn().mockReturnValue('mock-url');
+    revokeObjectURLMock = jest.fn();
+    global.URL.createObjectURL = createObjectURLMock;
+    global.URL.revokeObjectURL = revokeObjectURLMock;
+
+    // Mock anchor element click
+    anchorClickMock = jest.fn();
+    HTMLAnchorElement.prototype.click = anchorClickMock; // Mocking the click method
+    
+    // Mock jsPDF and autoTable
+    jest.mock('jspdf', () => {
+      const mockSave = jest.fn();
+      const mockText = jest.fn();
+      const mockSetFontSize = jest.fn();
+      // Mock the lastAutoTable property for jsPDF instance
+      const mockInstance = {
+        save: mockSave,
+        text: mockText,
+        setFontSize: mockSetFontSize,
+        lastAutoTable: { finalY: 50 }, 
+      };
+      return jest.fn(() => mockInstance);
+    });
+
+    jest.mock('jspdf-autotable', () => jest.fn());
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks(); // Restores original implementations
+    jest.unmock('jspdf'); // Unmock jspdf
+    jest.unmock('jspdf-autotable'); // Unmock jspdf-autotable
+    // Clean up specific mocks if necessary, though restoreAllMocks should handle most.
+    if (HTMLAnchorElement.prototype.click === anchorClickMock) {
+        delete HTMLAnchorElement.prototype.click; // Or restore original if saved
+    }
+  });
+
+  test('Download buttons are initially disabled and enabled after comparison', async () => {
+    render(<JsonTreeCompareViewer />);
+    const downloadJsonButton = screen.getByRole('button', { name: 'Download JSON Report' });
+    const downloadPdfButton = screen.getByRole('button', { name: 'Download PDF Report' });
+
+    expect(downloadJsonButton).toBeDisabled();
+    expect(downloadPdfButton).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: leftJsonString } });
+    fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: rightJsonString } });
+    fireEvent.click(screen.getByText('Compare'));
+
+    await waitFor(() => {
+      expect(downloadJsonButton).not.toBeDisabled();
+      expect(downloadPdfButton).not.toBeDisabled();
+    });
+  });
+  
+  test('Download JSON Report functionality', async () => {
+    render(<JsonTreeCompareViewer />);
+    fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: leftJsonString } });
+    fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: rightJsonString } });
+    fireEvent.click(screen.getByText('Compare'));
+    
+    const downloadJsonButton = await screen.findByRole('button', { name: 'Download JSON Report' });
+    expect(downloadJsonButton).not.toBeDisabled();
+    fireEvent.click(downloadJsonButton);
+
+    expect(createObjectURLMock).toHaveBeenCalledTimes(1);
+    const blob = createObjectURLMock.mock.calls[0][0];
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toBe('application/json');
+
+    const blobText = await blob.text(); // Read the Blob's content
+    const reportData = JSON.parse(blobText);
+    expect(reportData.leftJson).toEqual(leftJson);
+    expect(reportData.rightJson).toEqual(rightJson);
+    expect(reportData.statistics).toBeDefined();
+    expect(reportData.timestamp).toBeDefined();
+
+    const downloadAttribute = document.querySelector('a[download]');
+    expect(downloadAttribute.download).toMatch(/^json_comparison_report_.*\.json$/);
+    expect(anchorClickMock).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('mock-url');
+  });
+
+  test('Download PDF Report functionality', async () => {
+    const { jsPDF } = require('jspdf'); // Retrieve the mocked constructor
+    const autoTable = require('jspdf-autotable'); // Retrieve the mocked function
+    
+    render(<JsonTreeCompareViewer />);
+    fireEvent.change(screen.getByPlaceholderText('Enter left JSON here'), { target: { value: leftJsonString } });
+    fireEvent.change(screen.getByPlaceholderText('Enter right JSON here'), { target: { value: rightJsonString } });
+    fireEvent.click(screen.getByText('Compare'));
+
+    const downloadPdfButton = await screen.findByRole('button', { name: 'Download PDF Report' });
+    expect(downloadPdfButton).not.toBeDisabled();
+    fireEvent.click(downloadPdfButton);
+    
+    expect(jsPDF).toHaveBeenCalledTimes(1);
+    const mockPdfInstance = jsPDF.mock.results[0].value;
+
+    expect(mockPdfInstance.text).toHaveBeenCalledWith("JSON Comparison Report", 14, 22);
+    expect(mockPdfInstance.text).toHaveBeenCalledWith(expect.stringContaining("Report generated on:"), 14, 30);
+    
+    expect(autoTable).toHaveBeenCalledTimes(1);
+    expect(autoTable.mock.calls[0][1].head).toEqual([['Metric', 'Value']]);
+    expect(autoTable.mock.calls[0][1].body.length).toBeGreaterThan(0); // Check that some stats rows were passed
+    
+    expect(mockPdfInstance.save).toHaveBeenCalledTimes(1);
+    expect(mockPdfInstance.save).toHaveBeenCalledWith(expect.stringMatching(/^json_comparison_report_.*\.pdf$/));
+  });
+});
+
+
 // --- Keyboard Shortcut Tests ---
 describe('JsonTreeCompareViewer Keyboard Shortcuts', () => {
   let consoleLogSpy;
