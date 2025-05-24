@@ -112,8 +112,27 @@ const HelpModal = ({ isOpen, onClose }) => {
             </ul>
           </section>
 
+          <section className="mb-4">
+            <h4 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">VIII. Keyboard Shortcuts</h4>
+            <p className="mb-1">Use these shortcuts for faster navigation and actions:</p>
+            <ul className="list-disc list-inside space-y-1 pl-4">
+              <li>
+                <strong>Toggle Dark Mode:</strong> <kbd>Ctrl</kbd> + <kbd>D</kbd> (or <kbd>Cmd</kbd> + <kbd>D</kbd> on Mac)
+              </li>
+              <li>
+                <strong>Copy Left JSON:</strong> <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> (or <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> on Mac)
+              </li>
+              <li>
+                <strong>Clear Left JSON:</strong> <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd> (or <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd> on Mac)
+              </li>
+              <li>
+                <strong>Clear Right JSON:</strong> <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> (or <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> on Mac)
+              </li>
+            </ul>
+          </section>
+
           <section>
-            <h4 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">VIII. Tips for Effective Use</h4>
+            <h4 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">IX. Tips for Effective Use</h4>
             <ul className="list-disc list-inside space-y-1">
               <li>For large JSON, use the search and expand/collapse features to navigate efficiently.</li>
               <li>Ensure your JSON is valid before pasting. Online JSON validators can help if you encounter issues.</li>
