@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2, HelpCircle } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { AlertCircle, ChevronDown, ChevronRight, Copy, RefreshCw, X, Save, FolderOpen, Trash2, HelpCircle, Download } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -326,6 +328,106 @@ const JsonTreeCompareViewer = () => {
     }
   };
 
+  const handleJsonDownload = () => {
+    if (!parsedLeft || !parsedRight || !comparisonStats) {
+      alert("Please perform a comparison first to generate a report.");
+      return;
+    }
+
+    const reportData = {
+      leftJson: parsedLeft,
+      rightJson: parsedRight,
+      statistics: comparisonStats,
+      timestamp: new Date().toISOString(),
+    };
+
+    const jsonString = JSON.stringify(reportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `json_comparison_report_${new Date().toISOString()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePdfDownload = () => {
+    if (!parsedLeft || !parsedRight || !comparisonStats) {
+      alert("Please perform a comparison first to generate a report.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const timestamp = new Date().toISOString();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("JSON Comparison Report", 14, 22);
+
+    // Timestamp
+    doc.setFontSize(10);
+    doc.text(`Report generated on: ${timestamp}`, 14, 30);
+
+    // Statistics Table
+    const statMetrics = [
+      { key: 'totalLeftItems', label: 'Total Properties/Elements (Left)' },
+      { key: 'totalRightItems', label: 'Total Properties/Elements (Right)' },
+      { key: 'commonPaths', label: 'Common Paths (Keys/Indices)' },
+      { key: 'matchingValues', label: 'Matching Values (at Common Paths)' },
+      { key: 'differentValues', label: 'Different Values (at Common Paths)' },
+      { key: 'onlyInLeft', label: 'Exclusive to Left (Paths)' },
+      { key: 'onlyInRight', label: 'Exclusive to Right (Paths)' },
+    ];
+    
+    const tableBody = statMetrics.map(metric => [
+      metric.label,
+      comparisonStats[metric.key] !== undefined && comparisonStats[metric.key] !== null 
+        ? comparisonStats[metric.key].toLocaleString() 
+        : 'N/A'
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Metric', 'Value']],
+      body: tableBody,
+      theme: 'striped',
+      headStyles: { fillColor: [22, 160, 133] }, // Dark cyan
+      margin: { top: 10 }
+    });
+    
+    // Summary of Differences
+    let finalY = (doc).lastAutoTable.finalY || 50; // Get Y position after the table
+    doc.setFontSize(14);
+    doc.text("Summary of Differences", 14, finalY + 10);
+
+    doc.setFontSize(10);
+    let summaryTextY = finalY + 18;
+    doc.text(`- Items only in Left JSON: ${comparisonStats.onlyInLeft}`, 14, summaryTextY);
+    summaryTextY += 7;
+    doc.text(`- Items only in Right JSON: ${comparisonStats.onlyInRight}`, 14, summaryTextY);
+    summaryTextY += 7;
+    doc.text(`- Items with different values: ${comparisonStats.differentValues}`, 14, summaryTextY);
+
+    // Optionally, list a few differing paths (simplified)
+    if (comparisonStats.differences && comparisonStats.differences.length > 0) {
+      summaryTextY += 10;
+      doc.setFontSize(12);
+      doc.text("Examples of differing paths:", 14, summaryTextY);
+      doc.setFontSize(9);
+      summaryTextY += 6;
+      const maxExamples = 5;
+      comparisonStats.differences.slice(0, maxExamples).forEach((diff, index) => {
+        if (summaryTextY > 280) return; // Avoid going off page
+        doc.text(`  - Path: ${diff.path}`, 14, summaryTextY);
+        summaryTextY += 5;
+      });
+    }
+    
+    doc.save(`json_comparison_report_${timestamp}.pdf`);
+  };
+
   return (
     <div className={`p-4 max-w-7xl mx-auto ${darkMode ? 'dark' : ''}`}>
       <div className="dark:bg-gray-800 dark:text-white transition-colors duration-200">
@@ -376,6 +478,28 @@ const JsonTreeCompareViewer = () => {
                 aria-label="Open help section"
               >
                 <HelpCircle className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleJsonDownload} 
+                className="dark:text-white dark:border-white"
+                aria-label="Download JSON Report"
+                title="Download JSON Report"
+                disabled={!parsedLeft || !parsedRight || !comparisonStats}
+              >
+                <Download className="h-4 w-4" /> 
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handlePdfDownload} 
+                className="dark:text-white dark:border-white"
+                aria-label="Download PDF Report"
+                title="Download PDF Report"
+                disabled={!parsedLeft || !parsedRight || !comparisonStats}
+              >
+                <Download className="h-4 w-4" /> 
               </Button>
             </div>
           </CardHeader>
