@@ -19,29 +19,44 @@ export const getValueByPath = (jsonData, pathArray) => {
 };
 
 /**
- * Compares two values. Uses JSON.stringify for deep comparison of objects/arrays,
- * and strict equality for primitives.
+ * Compares two values using deep equality that ignores object key order.
  * @param {*} valueA - The first value.
  * @param {*} valueB - The second value.
  * @returns {boolean} True if values are equal, false otherwise.
  */
 export const areValuesEqual = (valueA, valueB) => {
-  if (typeof valueA !== typeof valueB) {
-    return false;
-  }
-  if (typeof valueA === 'object' && valueA !== null && valueB !== null) {
-    // For objects and arrays, use JSON.stringify for a deep comparison.
-    // Note: This has limitations (e.g., order of keys in objects, undefined values).
-    // A more robust deep equality check might be needed for complex scenarios.
-    try {
-      return JSON.stringify(valueA) === JSON.stringify(valueB);
-    } catch (e) {
-      // If stringify fails (e.g. circular references, though not expected in typical JSON)
-      return false;
+  // Handle null and undefined cases
+  if (valueA === valueB) return true;
+  if (valueA == null || valueB == null) return false;
+  if (typeof valueA !== typeof valueB) return false;
+
+  // For primitives
+  if (typeof valueA !== 'object') return valueA === valueB;
+
+  // For arrays
+  if (Array.isArray(valueA)) {
+    if (!Array.isArray(valueB)) return false;
+    if (valueA.length !== valueB.length) return false;
+    for (let i = 0; i < valueA.length; i++) {
+      if (!areValuesEqual(valueA[i], valueB[i])) return false;
     }
+    return true;
   }
-  // For primitives (string, number, boolean, null, undefined)
-  return valueA === valueB;
+
+  // For objects
+  if (Array.isArray(valueB)) return false;
+  
+  const keysA = Object.keys(valueA);
+  const keysB = Object.keys(valueB);
+  
+  if (keysA.length !== keysB.length) return false;
+  
+  for (const key of keysA) {
+    if (!keysB.includes(key)) return false;
+    if (!areValuesEqual(valueA[key], valueB[key])) return false;
+  }
+  
+  return true;
 };
 
 /**
