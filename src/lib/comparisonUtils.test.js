@@ -57,10 +57,8 @@ describe('comparisonUtils', () => {
 
     test('should correctly compare simple objects', () => {
       expect(areValuesEqual({ a: 1, b: 2 }, { a: 1, b: 2 })).toBe(true);
-      // Order of keys matters for JSON.stringify, so this utility will see them as different if order differs.
-      // For a more robust comparison, a custom deep equal ignoring key order would be needed.
-      // However, current implementation is based on JSON.stringify.
-      expect(areValuesEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(false); 
+      // Updated: Now ignores key order - this should return true
+      expect(areValuesEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(true); 
       expect(areValuesEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
     });
 

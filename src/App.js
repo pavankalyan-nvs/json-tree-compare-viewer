@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import JsonTreeCompareViewer from './JsonTreeCompareViewer';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -13,11 +14,13 @@ function App() {
   }, [darkMode]);
 
   return (
-    <div className={`App min-h-screen ${darkMode ? 'dark' : ''}`}>
-      <div className="dark:bg-gray-900 min-h-screen transition-colors duration-200">
-        <JsonTreeCompareViewer darkMode={darkMode} setDarkMode={setDarkMode} />
+    <ErrorBoundary>
+      <div className={`App min-h-screen ${darkMode ? 'dark' : ''}`}>
+        <div className="dark:bg-gray-900 min-h-screen transition-colors duration-200">
+          <JsonTreeCompareViewer darkMode={darkMode} setDarkMode={setDarkMode} />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 
